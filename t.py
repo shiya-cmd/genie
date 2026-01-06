@@ -30,7 +30,7 @@ SMSBOWER_API_KEY = "q3xSZbaPVpaZW5zsI4tzea7s0RlLfun3"
 SERVICE_CONFIG = {
     "wa": {
         "label": "WhatsApp Account",
-        "price": 99,
+        "price": 79,
         "service": "wa",
         "country": 22,
         "max_price": 0.4,
