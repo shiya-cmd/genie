@@ -37,7 +37,7 @@ SERVICE_CONFIG = {
     },
     "tg": {
         "label": "Telegram Account",
-        "price": 129,
+        "price": 89,
         "service": "tg",
         "country": 22,
         "max_price": 0.5,
