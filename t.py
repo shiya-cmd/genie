@@ -70,7 +70,7 @@ async def deduct_balance(user_id, amount):
 
 # ================= PRICE =================
 def convert_price(usd):
-    return round((usd * 100) * 2.5, 2)
+    return round((usd * 100) * 2.5*3, 2)
 
 
 # ================= SERVICES =================
