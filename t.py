@@ -563,7 +563,6 @@ async def otp_worker(user_id, act_id, phone, price, message, context):
             kb = [
                     [
                         InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_{act_id}_{price}"),
-                        InlineKeyboardButton("🔄 Buy Another", callback_data="buy_again")
                     ]
                 ]
             await message.edit_text(
@@ -623,48 +622,6 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         otp_worker(user, act_id, phone, final_price, msg, context)
     )
 
-async def buy_again(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    user = query.from_user.id
-
-    service = context.user_data.get("service")
-    country = context.user_data.get("country")
-    usd_price = context.user_data.get("usd_price")
-    final_price = context.user_data.get("price")
-
-    if not service or not country:
-        await query.message.reply_text("❌ Session expired. Start again.")
-        return
-
-    # balance check
-    bal = await get_balance(user)
-    if bal < final_price:
-        await query.message.reply_text("❌ Insufficient balance")
-        return
-
-    # deduct again
-    await deduct_balance(user, final_price)
-
-    act_id, phone = await get_number(service, country, usd_price)
-
-    if not phone:
-        await refund_balance(user, final_price)
-        await query.message.reply_text("❌ No number available")
-        return
-
-    await mark_sms_sent(act_id)
-
-    msg = await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="🔄 Getting new number..."
-    )
-
-    asyncio.create_task(
-        otp_worker(user, act_id, phone, final_price, msg, context)
-    )
-
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [
         [InlineKeyboardButton("📢 Join Channel", url="https://t.me/genie_tempotp")],
@@ -703,7 +660,6 @@ app.add_handler(CommandHandler("about", about))
 # select amount
 app.add_handler(CallbackQueryHandler(select_amount, pattern="^amt_"))
 app.add_handler(CallbackQueryHandler(cancel_otp, pattern="^cancel_"))
-app.add_handler(CallbackQueryHandler(buy_again, pattern="^buy_again$"))
 
 
 load_country_map()
