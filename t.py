@@ -514,19 +514,37 @@ async def change_service_page(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_reply_markup(reply_markup=kb)
 
+async def cancel_otp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
+    _, act_id, price = query.data.split("_")
+    price = float(price)
+    user = query.from_user.id
+
+    # 🔴 STOP OTP WORKER
+    context.user_data[f"cancel_{act_id}"] = True
+
+    # 🔴 cancel activation
+    await cancel_activation(act_id)
+
+    # 🔴 refund
+    await refund_balance(user, price)
+    await query.edit_message_text("❌ Cancelled\n💰 Refunded")
 async def otp_worker(user_id, act_id, phone, price, message, context):
     total_time = 300  # 5 minutes
     bar_length = 10
-
     for t in range(total_time):
         # 🔍 check OTP every 5 sec
+        if context.user_data.get(f"cancel_{act_id}"):
+            return
         if t % 5 == 0:
             otp = await get_otp(act_id)
             if otp:
                 await message.edit_text(
                     f"📞 {phone}\n\n✅ OTP: {otp}"
                 )
+                context.user_data.pop(f"cancel_{act_id}", None)
                 return
 
         # 📊 progress calculation
@@ -542,11 +560,18 @@ async def otp_worker(user_id, act_id, phone, price, message, context):
 
         # ✨ update message
         try:
+            kb = [
+                    [
+                        InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_{act_id}_{price}"),
+                        InlineKeyboardButton("🔄 Buy Another", callback_data="buy_again")
+                    ]
+                ]
             await message.edit_text(
                 f"📞 +{phone}\n"
                 f"⏳ Waiting OTP [{bar}] {percent}%\n"
                 f"⏱ {mins:02d}:{secs:02d} remaining"
-                f"\n\n\n If OTP doesn't arrive, then it will be automatically canceled and the amount will be refunded."
+                f"\n\n\n If OTP doesn't arrive, then it will be automatically canceled and the amount will be refunded.",
+                reply_markup=InlineKeyboardMarkup(kb)
             )
         except:
             pass  # ignore edit errors
@@ -556,7 +581,7 @@ async def otp_worker(user_id, act_id, phone, price, message, context):
     # ❌ timeout → cancel + refund
     await cancel_activation(act_id)
     await refund_balance(user_id, price)
-
+    context.user_data.pop(f"cancel_{act_id}", None)
     await message.edit_text(
         "❌ OTP timeout\n💰 Refunded"
     )
@@ -598,6 +623,47 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         otp_worker(user, act_id, phone, final_price, msg, context)
     )
 
+async def buy_again(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user.id
+
+    service = context.user_data.get("service")
+    country = context.user_data.get("country")
+    usd_price = context.user_data.get("usd_price")
+    final_price = context.user_data.get("price")
+
+    if not service or not country:
+        await query.message.reply_text("❌ Session expired. Start again.")
+        return
+
+    # balance check
+    bal = await get_balance(user)
+    if bal < final_price:
+        await query.message.reply_text("❌ Insufficient balance")
+        return
+
+    # deduct again
+    await deduct_balance(user, final_price)
+
+    act_id, phone = await get_number(service, country, usd_price)
+
+    if not phone:
+        await refund_balance(user, final_price)
+        await query.message.reply_text("❌ No number available")
+        return
+
+    await mark_sms_sent(act_id)
+
+    msg = await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="🔄 Getting new number..."
+    )
+
+    asyncio.create_task(
+        otp_worker(user, act_id, phone, final_price, msg, context)
+    )
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [
@@ -636,6 +702,9 @@ app.add_handler(CallbackQueryHandler(buy, pattern="^buy$"))
 app.add_handler(CommandHandler("about", about))
 # select amount
 app.add_handler(CallbackQueryHandler(select_amount, pattern="^amt_"))
+app.add_handler(CallbackQueryHandler(cancel_otp, pattern="^cancel_"))
+app.add_handler(CallbackQueryHandler(buy_again, pattern="^buy_again$"))
+
 
 load_country_map()
 app.run_polling()
