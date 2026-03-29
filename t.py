@@ -155,13 +155,16 @@ async def get_otp(act_id):
     return None
 
 
-async def cancel_activation(act_id):
+async def set_status(act_id, status):
     await http_get({
         "api_key": API_KEY,
         "action": "setStatus",
         "id": act_id,
-        "status": 8
+        "status": status
     })
+
+async def cancel_activation(act_id):
+    await set_status(act_id, 8)
 
 async def refund_balance(user_id, amount):
     bal = await get_balance(user_id)
