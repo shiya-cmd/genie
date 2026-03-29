@@ -70,7 +70,7 @@ async def deduct_balance(user_id, amount):
 
 # ================= PRICE =================
 def convert_price(usd):
-    return round((usd * 100) * 2.5*3, 2)
+    return round((usd * 100) * 2.5 * 2.9, 2)
 
 
 # ================= SERVICES =================
@@ -274,8 +274,21 @@ async def add_money(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     kb = [
         [
+            InlineKeyboardButton("₹10", callback_data="amt_10"),
+            InlineKeyboardButton("₹20", callback_data="amt_20"),
+            InlineKeyboardButton("₹30", callback_data="amt_30"),
+            InlineKeyboardButton("₹40", callback_data="amt_40"),
+        ],
+        [
+            InlineKeyboardButton("₹50", callback_data="amt_10"),
             InlineKeyboardButton("₹20", callback_data="amt_20"),
             InlineKeyboardButton("₹50", callback_data="amt_50"),
+            InlineKeyboardButton("₹60", callback_data="amt_60"),
+        ],
+        [
+            InlineKeyboardButton("₹70", callback_data="amt_70"),
+            InlineKeyboardButton("₹80", callback_data="amt_80"),
+            InlineKeyboardButton("₹90", callback_data="amt_90"),
             InlineKeyboardButton("₹100", callback_data="amt_100"),
         ]
     ]
