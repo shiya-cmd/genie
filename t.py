@@ -150,7 +150,7 @@ async def get_otp(act_id):
         "action": "getStatus",
         "id": act_id
     })
-    if isinstance(res, str) and res.startswith("STATUS_OK"):
+    if res.startswith("STATUS_OK"):
         return res.split(":")[1]
     return None
 
